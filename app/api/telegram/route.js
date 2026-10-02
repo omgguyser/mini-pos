@@ -5,21 +5,32 @@ const LOW_STOCK_LIMIT = 5; // เตือนเมื่อสต๊อกเ�
 const esc = (s) =>
   String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-// ส่งข้อความ 1 ข้อความไปที่ Telegram
+// ส่งข้อความ 1 ข้อความไปที่ Telegram และ log ข้อผิดพลาดจริงจาก Telegram
 async function sendTelegram(token, chatId, text) {
   const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
   });
+  if (!res.ok) {
+    const body = await res.text();
+    console.error('Telegram error:', res.status, body);
+  }
   return res.ok;
 }
 
 export async function POST(request) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
+
+  // บอกให้ชัดว่าขาดตัวแปรตัวไหน
+  if (!token) console.error('Missing env: TELEGRAM_BOT_TOKEN');
+  if (!chatId) console.error('Missing env: TELEGRAM_CHAT_ID');
   if (!token || !chatId) {
-    return Response.json({ ok: false, error: 'ยังไม่ได้ตั้งค่า Telegram' }, { status: 500 });
+    return Response.json(
+      { ok: false, error: 'ยังไม่ได้ตั้งค่า Telegram', hasToken: !!token, hasChatId: !!chatId },
+      { status: 500 }
+    );
   }
 
   try {
@@ -54,6 +65,7 @@ export async function POST(request) {
 
     return Response.json({ ok: orderOk && lowOk });
   } catch (err) {
+    console.error('Telegram route error:', err);
     return Response.json({ ok: false, error: String(err) }, { status: 500 });
   }
 }
