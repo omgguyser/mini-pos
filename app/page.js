@@ -9,6 +9,20 @@ const DEFAULT_UNITS = ['ชิ้น', 'ขวด', 'ถุง', 'กล่อ�
 // ค่าเริ่มต้นของฟอร์ม
 const emptyForm = { sku: '', name: '', price: '', stock: '', unit: '' };
 
+// ส่งแจ้งเตือนไป Telegram ผ่าน API route (ถ้าล้มเหลว การซื้อยังสำเร็จตามปกติ)
+async function notifyTelegram(payload) {
+  try {
+    const res = await fetch('/api/telegram', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) console.warn('ส่ง Telegram ไม่สำเร็จ:', res.status);
+  } catch (err) {
+    console.warn('ส่ง Telegram ไม่สำเร็จ:', err);
+  }
+}
+
 export default function HomePage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +82,7 @@ export default function HomePage() {
     }
   }
 
-  // ซื้อสินค้า 1 ชิ้นต่อการกด 1 ครั้ง: บันทึกลง sales แล้วหักสต็อก 1
+  // ซื้อสินค้า 1 ชิ้นต่อการกด 1 ครั้ง: บันทึกลง sales, หักสต็อก 1, แล้วแจ้ง Telegram
   async function handleBuy(p) {
     setMessage('');
     const qty = 1; // ล็อกจำนวนที่ซื้อไว้ที่ 1
@@ -110,9 +124,10 @@ export default function HomePage() {
     }
 
     // 4) ตัดสต็อกลง 1
+    const stockAfter = fresh.stock - qty;
     const { error: stockError } = await supabase
       .from('products')
-      .update({ stock: fresh.stock - qty })
+      .update({ stock: stockAfter })
       .eq('id', p.id);
     if (stockError) {
       setBuyingId(null);
@@ -120,7 +135,17 @@ export default function HomePage() {
       return;
     }
 
-    // 5) แจ้งสำเร็จ และโหลดสต็อกใหม่
+    // 5) แจ้งเตือน Telegram หลังตัดสต็อกสำเร็จ
+    // ไม่ใส่ await: ไม่ต้องรอ Telegram ก่อนแจ้งผลในหน้าเว็บ
+    notifyTelegram({
+      name: fresh.name,
+      quantity: qty,
+      total,
+      stockLeft: stockAfter,
+      unit: p.unit,
+    });
+
+    // 6) แจ้งสำเร็จ และโหลดสต็อกใหม่
     setMessage(`ซื้อสำเร็จ: ${fresh.name} 1 ${p.unit} ราคา ${total.toLocaleString()} บาท`);
     setBuyingId(null);
     loadProducts();
@@ -308,47 +333,3 @@ export default function HomePage() {
                   <td></td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <button onClick={() => handleSave(p.id)}>บันทึก</button>{' '}
-                    <button
-                      style={{ background: '#6b7280' }}
-                      onClick={() => setEditingId(null)}
-                    >
-                      ยกเลิก
-                    </button>
-                  </td>
-                </tr>
-              ) : (
-                // แถวโหมดแสดงผลปกติ
-                <tr key={p.id}>
-                  <td>{p.sku}</td>
-                  <td>{p.name}</td>
-                  <td>{Number(p.price).toLocaleString()}</td>
-                  <td>{p.stock}</td>
-                  <td>{p.unit}</td>
-                  {/* ปุ่มซื้อ: กดครั้งละ 1 ชิ้น */}
-                  <td>
-                    <button
-                      style={{ background: '#16a34a' }}
-                      onClick={() => handleBuy(p)}
-                      disabled={p.stock <= 0 || buyingId === p.id}
-                    >
-                      {p.stock <= 0 ? 'หมด' : buyingId === p.id ? '...' : 'ซื้อ 1'}
-                    </button>
-                  </td>
-                  <td style={{ whiteSpace: 'nowrap' }}>
-                    <button onClick={() => startEdit(p)}>แก้ไข</button>{' '}
-                    <button
-                      style={{ background: '#dc2626' }}
-                      onClick={() => handleDelete(p)}
-                    >
-                      ลบ
-                    </button>
-                  </td>
-                </tr>
-              )
-            )}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
-}
