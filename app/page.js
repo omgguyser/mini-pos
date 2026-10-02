@@ -15,6 +15,8 @@ export default function HomePage() {
   const [form, setForm] = useState(emptyForm);         // ฟอร์มเพิ่มสินค้า
   const [editingId, setEditingId] = useState(null);    // id ของแถวที่กำลังแก้ไข
   const [editForm, setEditForm] = useState(emptyForm); // ข้อมูลที่กำลังแก้ไข
+  const [buyingId, setBuyingId] = useState(null);      // id สินค้าที่กำลังบันทึกการซื้อ
+  const [message, setMessage] = useState('');          // ข้อความยืนยันการซื้อ
 
   // รายการหน่วยที่ให้เลือก = ค่าเริ่มต้น + หน่วยที่มีอยู่แล้วในสินค้า (ไม่ซ้ำ)
   const unitOptions = [
@@ -64,6 +66,64 @@ export default function HomePage() {
     } else {
       setForm({ ...form, name: value });
     }
+  }
+
+  // ซื้อสินค้า 1 ชิ้นต่อการกด 1 ครั้ง: บันทึกลง sales แล้วหักสต็อก 1
+  async function handleBuy(p) {
+    setMessage('');
+    const qty = 1; // ล็อกจำนวนที่ซื้อไว้ที่ 1
+
+    setBuyingId(p.id);
+
+    // 1) ดึงข้อมูลล่าสุดจากฐานข้อมูล (กันข้อมูลบนหน้าจอเก่า)
+    const { data: fresh, error: freshError } = await supabase
+      .from('products')
+      .select('stock, price, name')
+      .eq('id', p.id)
+      .single();
+    if (freshError) {
+      setBuyingId(null);
+      alert('ตรวจสอบสต็อกไม่สำเร็จ: ' + freshError.message);
+      return;
+    }
+
+    // 2) ตรวจสอบว่ายังมีของเหลือหรือไม่
+    if (fresh.stock < qty) {
+      setBuyingId(null);
+      loadProducts();
+      alert('สินค้าหมดแล้ว');
+      return;
+    }
+
+    // 3) บันทึกรายการขาย
+    const total = Number(fresh.price) * qty;
+    const { error: saleError } = await supabase.from('sales').insert({
+      product_id: p.id,
+      product_name: fresh.name,
+      quantity: qty,
+      total_price: total,
+    });
+    if (saleError) {
+      setBuyingId(null);
+      alert('บันทึกการซื้อไม่สำเร็จ: ' + saleError.message);
+      return;
+    }
+
+    // 4) ตัดสต็อกลง 1
+    const { error: stockError } = await supabase
+      .from('products')
+      .update({ stock: fresh.stock - qty })
+      .eq('id', p.id);
+    if (stockError) {
+      setBuyingId(null);
+      alert('บันทึกการซื้อแล้ว แต่ตัดสต็อกไม่สำเร็จ: ' + stockError.message);
+      return;
+    }
+
+    // 5) แจ้งสำเร็จ และโหลดสต็อกใหม่
+    setMessage(`ซื้อสำเร็จ: ${fresh.name} 1 ${p.unit} ราคา ${total.toLocaleString()} บาท`);
+    setBuyingId(null);
+    loadProducts();
   }
 
   // เริ่มแก้ไข: คัดลอกข้อมูลของแถวนั้นไปใส่ editForm
@@ -128,6 +188,16 @@ export default function HomePage() {
         ))}
       </datalist>
 
+      {/* ข้อความยืนยันการซื้อสำเร็จ */}
+      {message && (
+        <div
+          className="card"
+          style={{ background: '#dcfce7', color: '#166534', border: '1px solid #86efac' }}
+        >
+          {message}
+        </div>
+      )}
+
       {/* ฟอร์มเพิ่มสินค้าใหม่ */}
       <form className="card" onSubmit={handleAdd}>
         <h2>เพิ่มสินค้าใหม่</h2>
@@ -138,7 +208,6 @@ export default function HomePage() {
             onChange={(e) => setForm({ ...form, sku: e.target.value })}
             required
           />
-          {/* คลิกเพื่อเลือกสินค้าเดิม (ราคาและหน่วยจะเติมให้) หรือพิมพ์ชื่อใหม่ก็ได้ */}
           <input
             list="product-list"
             placeholder="ชื่อสินค้า (คลิกเพื่อเลือก)"
@@ -163,7 +232,6 @@ export default function HomePage() {
             onChange={(e) => setForm({ ...form, stock: e.target.value })}
             required
           />
-          {/* คลิกเพื่อเลือกหน่วยจากรายการ หรือพิมพ์เองก็ได้ */}
           <input
             list="unit-list"
             placeholder="หน่วย (คลิกเพื่อเลือก)"
@@ -186,13 +254,14 @@ export default function HomePage() {
               <th>ราคา</th>
               <th>คงเหลือ</th>
               <th>หน่วย</th>
+              <th>ซื้อ</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {products.length === 0 && (
               <tr>
-                <td colSpan={6}>ยังไม่มีสินค้า</td>
+                <td colSpan={7}>ยังไม่มีสินค้า</td>
               </tr>
             )}
             {products.map((p) =>
@@ -236,6 +305,7 @@ export default function HomePage() {
                       onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })}
                     />
                   </td>
+                  <td></td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <button onClick={() => handleSave(p.id)}>บันทึก</button>{' '}
                     <button
@@ -254,6 +324,16 @@ export default function HomePage() {
                   <td>{Number(p.price).toLocaleString()}</td>
                   <td>{p.stock}</td>
                   <td>{p.unit}</td>
+                  {/* ปุ่มซื้อ: กดครั้งละ 1 ชิ้น */}
+                  <td>
+                    <button
+                      style={{ background: '#16a34a' }}
+                      onClick={() => handleBuy(p)}
+                      disabled={p.stock <= 0 || buyingId === p.id}
+                    >
+                      {p.stock <= 0 ? 'หมด' : buyingId === p.id ? '...' : 'ซื้อ 1'}
+                    </button>
+                  </td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <button onClick={() => startEdit(p)}>แก้ไข</button>{' '}
                     <button
