@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabaseClient';
 // หน่วยเริ่มต้นที่ให้เลือก (เพิ่มได้ตามต้องการ)
 const DEFAULT_UNITS = ['ชิ้น', 'ขวด', 'ถุง', 'กล่อง', 'แพ็ค', 'ชุด', 'unit'];
 
-// ค่าเริ่มต้นของฟอร์มเพิ่มสินค้า
+// ค่าเริ่มต้นของฟอร์ม
 const emptyForm = { sku: '', name: '', price: '', stock: '', unit: '' };
 
 export default function HomePage() {
@@ -53,6 +53,17 @@ export default function HomePage() {
     }
     setForm(emptyForm);
     loadProducts();
+  }
+
+  // เมื่อเลือกชื่อสินค้าที่มีอยู่แล้ว ให้เติมราคาและหน่วยให้อัตโนมัติ
+  function handleNameChange(e) {
+    const value = e.target.value;
+    const match = products.find((p) => p.name === value);
+    if (match) {
+      setForm({ ...form, name: match.name, price: String(match.price), unit: match.unit });
+    } else {
+      setForm({ ...form, name: value });
+    }
   }
 
   // เริ่มแก้ไข: คัดลอกข้อมูลของแถวนั้นไปใส่ editForm
@@ -110,6 +121,13 @@ export default function HomePage() {
         ))}
       </datalist>
 
+      {/* รายชื่อสินค้าที่มีอยู่แล้ว สำหรับเลือกในช่องชื่อสินค้า */}
+      <datalist id="product-list">
+        {products.map((p) => (
+          <option key={p.id} value={p.name} />
+        ))}
+      </datalist>
+
       {/* ฟอร์มเพิ่มสินค้าใหม่ */}
       <form className="card" onSubmit={handleAdd}>
         <h2>เพิ่มสินค้าใหม่</h2>
@@ -120,10 +138,12 @@ export default function HomePage() {
             onChange={(e) => setForm({ ...form, sku: e.target.value })}
             required
           />
+          {/* คลิกเพื่อเลือกสินค้าเดิม (ราคาและหน่วยจะเติมให้) หรือพิมพ์ชื่อใหม่ก็ได้ */}
           <input
-            placeholder="ชื่อสินค้า"
+            list="product-list"
+            placeholder="ชื่อสินค้า (คลิกเพื่อเลือก)"
             value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            onChange={handleNameChange}
             required
           />
           <input
@@ -143,7 +163,7 @@ export default function HomePage() {
             onChange={(e) => setForm({ ...form, stock: e.target.value })}
             required
           />
-          {/* คลิกที่ช่องนี้เพื่อเลือกหน่วยจากรายการ หรือพิมพ์เองก็ได้ */}
+          {/* คลิกเพื่อเลือกหน่วยจากรายการ หรือพิมพ์เองก็ได้ */}
           <input
             list="unit-list"
             placeholder="หน่วย (คลิกเพื่อเลือก)"
