@@ -1,10 +1,14 @@
 * { box-sizing: border-box; }
 
+:root {
+  color-scheme: dark; /* ให้ dropdown, datalist และช่องกรอกของเบราว์เซอร์เป็นสีมืดด้วย */
+}
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  background: #f5f6f8;
-  color: #222;
+  background: #0f1115;
+  color: #e5e7eb;
   line-height: 1.5;
 }
 
@@ -13,33 +17,43 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 12px 24px;
-  background: #1f2937;
+  background: #171a21;
+  border-bottom: 1px solid #262a33;
   color: #fff;
 }
 .navbar .brand { font-weight: 700; font-size: 1.2rem; }
 .navbar nav { display: flex; gap: 20px; }
-.navbar a { color: #d1d5db; text-decoration: none; }
+.navbar a { color: #9ca3af; text-decoration: none; }
 .navbar a:hover { color: #fff; }
 
 .container { max-width: 900px; margin: 24px auto; padding: 0 16px; }
 
-h1, h2 { margin-top: 0; }
+h1, h2 { margin-top: 0; color: #f3f4f6; }
 
 table {
   width: 100%;
   border-collapse: collapse;
-  background: #fff;
+  background: #171a21;
   border-radius: 8px;
   overflow: hidden;
 }
-th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; }
-th { background: #f0f1f4; }
+th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #262a33; }
+th { background: #1e222b; color: #f3f4f6; }
+tr:last-child td { border-bottom: none; }
 
 input, select {
   padding: 8px 10px;
-  border: 1px solid #ccc;
+  border: 1px solid #343a46;
   border-radius: 6px;
+  background: #0f1115;
+  color: #e5e7eb;
   font-size: 1rem;
+}
+input::placeholder { color: #6b7280; }
+input:focus, select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
 }
 
 button {
@@ -51,12 +65,15 @@ button {
   font-size: 1rem;
   cursor: pointer;
 }
-button:hover { background: #1d4ed8; }
-button:disabled { background: #9ca3af; cursor: not-allowed; }
+button:hover { filter: brightness(1.15); }
+button:disabled { background: #374151; color: #9ca3af; cursor: not-allowed; filter: none; }
 
 .card {
-  background: #fff;
+  background: #171a21;
+  border: 1px solid #262a33;
   padding: 16px;
   border-radius: 8px;
   margin-bottom: 16px;
 }
+
+small { color: #9ca3af; }
