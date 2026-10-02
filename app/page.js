@@ -333,3 +333,47 @@ export default function HomePage() {
                   <td></td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <button onClick={() => handleSave(p.id)}>บันทึก</button>{' '}
+                    <button
+                      style={{ background: '#6b7280' }}
+                      onClick={() => setEditingId(null)}
+                    >
+                      ยกเลิก
+                    </button>
+                  </td>
+                </tr>
+              ) : (
+                // แถวโหมดแสดงผลปกติ
+                <tr key={p.id}>
+                  <td>{p.sku}</td>
+                  <td>{p.name}</td>
+                  <td>{Number(p.price).toLocaleString()}</td>
+                  <td>{p.stock}</td>
+                  <td>{p.unit}</td>
+                  {/* ปุ่มซื้อ: กดครั้งละ 1 ชิ้น */}
+                  <td>
+                    <button
+                      style={{ background: '#16a34a' }}
+                      onClick={() => handleBuy(p)}
+                      disabled={p.stock <= 0 || buyingId === p.id}
+                    >
+                      {p.stock <= 0 ? 'หมด' : buyingId === p.id ? '...' : 'ซื้อ 1'}
+                    </button>
+                  </td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <button onClick={() => startEdit(p)}>แก้ไข</button>{' '}
+                    <button
+                      style={{ background: '#dc2626' }}
+                      onClick={() => handleDelete(p)}
+                    >
+                      ลบ
+                    </button>
+                  </td>
+                </tr>
+              )
+            )}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
