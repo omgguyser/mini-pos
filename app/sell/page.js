@@ -4,6 +4,21 @@ import { useState, useEffect } from 'react';
 // ไฟล์นี้อยู่ลึกกว่า app/page.js หนึ่งชั้น จึงต้องใช้ ../../
 import { supabase } from '../../lib/supabaseClient';
 
+// [เพิ่มใหม่] ส่งแจ้งเตือนไป Telegram ผ่าน API route
+// ใช้ try/catch และไม่ throw ออกไป: ถ้า Telegram มีปัญหา การขายยังสำเร็จตามปกติ
+async function notifyTelegram(payload) {
+  try {
+    const res = await fetch('/api/telegram', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) console.warn('ส่ง Telegram ไม่สำเร็จ:', res.status);
+  } catch (err) {
+    console.warn('ส่ง Telegram ไม่สำเร็จ:', err);
+  }
+}
+
 export default function SellPage() {
   const [products, setProducts] = useState([]);
   const [productId, setProductId] = useState('');
@@ -60,11 +75,12 @@ export default function SellPage() {
     }
 
     // 3) บันทึกรายการขาย (sold_at ใช้ค่า default now() จากฐานข้อมูล)
+    const saleTotal = Number(fresh.price) * qty;
     const { error: saleError } = await supabase.from('sales').insert({
       product_id: selected.id,
       product_name: fresh.name, // เก็บชื่อ ณ ตอนขายไว้
       quantity: qty,
-      total_price: Number(fresh.price) * qty,
+      total_price: saleTotal,
     });
     if (saleError) {
       setSaving(false);
@@ -72,18 +88,29 @@ export default function SellPage() {
     }
 
     // 4) ตัดสต็อก
+    const stockAfter = fresh.stock - qty;
     const { error: stockError } = await supabase
       .from('products')
-      .update({ stock: fresh.stock - qty })
+      .update({ stock: stockAfter })
       .eq('id', selected.id);
     if (stockError) {
       setSaving(false);
       return alert('บันทึกการขายแล้ว แต่ตัดสต็อกไม่สำเร็จ: ' + stockError.message);
     }
 
-    // 5) แจ้งสำเร็จ และรีเซ็ตฟอร์ม
+    // 5) [เพิ่มใหม่] แจ้งเตือน Telegram หลังตัดสต็อกสำเร็จ
+    // ไม่ใส่ await: ไม่ต้องรอ Telegram ก่อนแจ้งผลขายในหน้าเว็บ
+    notifyTelegram({
+      name: fresh.name,
+      quantity: qty,
+      total: saleTotal,
+      stockLeft: stockAfter,
+      unit: selected.unit,
+    });
+
+    // 6) แจ้งสำเร็จ และรีเซ็ตฟอร์ม
     setMessage(
-      `ขายสำเร็จ: ${fresh.name} x ${qty} ${selected.unit} รวม ${(Number(fresh.price) * qty).toLocaleString()} บาท`
+      `ขายสำเร็จ: ${fresh.name} x ${qty} ${selected.unit} รวม ${saleTotal.toLocaleString()} บาท`
     );
     setProductId('');
     setQuantity('1');
