@@ -3,15 +3,23 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
+// หน่วยเริ่มต้นที่ให้เลือก (เพิ่มได้ตามต้องการ)
+const DEFAULT_UNITS = ['ชิ้น', 'ขวด', 'ถุง', 'กล่อง', 'แพ็ค', 'ชุด', 'unit'];
+
 // ค่าเริ่มต้นของฟอร์มเพิ่มสินค้า
-const emptyForm = { sku: '', name: '', price: '', stock: '', unit: 'ชิ้น' };
+const emptyForm = { sku: '', name: '', price: '', stock: '', unit: '' };
 
 export default function HomePage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState(emptyForm);       // ฟอร์มเพิ่มสินค้า
-  const [editingId, setEditingId] = useState(null);  // id ของแถวที่กำลังแก้ไข
+  const [form, setForm] = useState(emptyForm);         // ฟอร์มเพิ่มสินค้า
+  const [editingId, setEditingId] = useState(null);    // id ของแถวที่กำลังแก้ไข
   const [editForm, setEditForm] = useState(emptyForm); // ข้อมูลที่กำลังแก้ไข
+
+  // รายการหน่วยที่ให้เลือก = ค่าเริ่มต้น + หน่วยที่มีอยู่แล้วในสินค้า (ไม่ซ้ำ)
+  const unitOptions = [
+    ...new Set([...DEFAULT_UNITS, ...products.map((p) => p.unit).filter(Boolean)]),
+  ];
 
   // ดึงสินค้าทั้งหมดจาก Supabase
   async function loadProducts() {
@@ -68,7 +76,7 @@ export default function HomePage() {
         name: editForm.name.trim(),
         price: Number(editForm.price),
         stock: Number(editForm.stock),
-        unit: editForm.unit.trim(),
+        unit: editForm.unit.trim() || 'ชิ้น',
       })
       .eq('id', id);
     if (error) {
@@ -94,6 +102,13 @@ export default function HomePage() {
   return (
     <div>
       <h1>รายการสินค้า</h1>
+
+      {/* รายการหน่วยที่ใช้ร่วมกันทั้งฟอร์มเพิ่มและแถวแก้ไข */}
+      <datalist id="unit-list">
+        {unitOptions.map((u) => (
+          <option key={u} value={u} />
+        ))}
+      </datalist>
 
       {/* ฟอร์มเพิ่มสินค้าใหม่ */}
       <form className="card" onSubmit={handleAdd}>
@@ -128,8 +143,10 @@ export default function HomePage() {
             onChange={(e) => setForm({ ...form, stock: e.target.value })}
             required
           />
+          {/* คลิกที่ช่องนี้เพื่อเลือกหน่วยจากรายการ หรือพิมพ์เองก็ได้ */}
           <input
-            placeholder="หน่วย"
+            list="unit-list"
+            placeholder="หน่วย (คลิกเพื่อเลือก)"
             value={form.unit}
             onChange={(e) => setForm({ ...form, unit: e.target.value })}
           />
@@ -193,7 +210,8 @@ export default function HomePage() {
                   </td>
                   <td>
                     <input
-                      style={{ width: 70 }}
+                      list="unit-list"
+                      style={{ width: 90 }}
                       value={editForm.unit}
                       onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })}
                     />
