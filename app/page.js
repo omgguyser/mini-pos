@@ -333,7 +333,7 @@ export default function HomePage() {
                   <td></td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <button onClick={() => handleSave(p.id)}>บันทึก</button>{' '}
-                    <button
+                        <button
                       style={{ background: '#6b7280' }}
                       onClick={() => setEditingId(null)}
                     >
