@@ -69,3 +69,17 @@ export async function POST(request) {
     return Response.json({ ok: false, error: String(err) }, { status: 500 });
   }
 }
+// ใช้ทดสอบชั่วคราว: เปิด /api/telegram ในเบราว์เซอร์ (ลบทิ้งเมื่อทดสอบเสร็จ)
+export async function GET() {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  const info = { hasToken: !!token, hasChatId: !!chatId };
+  if (!token || !chatId) return Response.json({ ...info, sent: false });
+
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text: 'ทดสอบจากเว็บ Mini POS' }),
+  });
+  return Response.json({ ...info, sent: res.ok, telegram: await res.text() });
+}
